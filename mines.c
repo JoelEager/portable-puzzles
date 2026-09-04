@@ -4305,7 +4305,7 @@ static char *interpret_move(const game_state *from, game_ui *ui,
             if (v != -2 && v != -1)
                 return MOVE_NO_EFFECT;
             if (ds->grid->type == MINES_GRID_SQUARE)
-                sprintf(buf, "F%d,%d", ui->cur_tile%ds->w, ui->cur_tile/ds->h);
+                sprintf(buf, "F%d,%d", ui->cur_tile%ds->w, ui->cur_tile/ds->w);
             else
                 sprintf(buf, "F%d", ui->cur_tile);
             return dupstr(buf);
@@ -4317,7 +4317,7 @@ static char *interpret_move(const game_state *from, game_ui *ui,
                 ui->deaths++;
 
             if (ds->grid->type == MINES_GRID_SQUARE)
-                sprintf(buf, "O%d,%d", ui->cur_tile%ds->w, ui->cur_tile/ds->h);
+                sprintf(buf, "O%d,%d", ui->cur_tile%ds->w, ui->cur_tile/ds->w);
             else
                 sprintf(buf, "O%d", ui->cur_tile);
             return dupstr(buf);
