@@ -2230,8 +2230,8 @@ static void msgbox_button_clicked(GtkButton *button, gpointer data)
     gtk_widget_destroy(GTK_WIDGET(data));
 }
 
-bool message_box(GtkWidget *parent, const char *title, const char *msg,
-                 bool centre, int type)
+static bool message_box(GtkWidget *parent, const char *title, const char *msg,
+                        bool centre, int type)
 {
     GtkWidget *window, *hbox, *text, *button;
     const char *titles;
