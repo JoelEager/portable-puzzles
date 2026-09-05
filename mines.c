@@ -4639,6 +4639,12 @@ static void game_compute_size(const game_params *params, int tilesize,
 
     grid_compute_size(grid_types[params->type], params->w, params->h,
                       &g_tilesize, &grid_width, &grid_height);
+    if (params->type == MINES_GRID_TRIANGULAR_CYCLIC) {
+        /* Work around for Triangular grid of old kind until a better
+         * solution exist.
+         */
+        grid_width -= 15;  /* TRIANGLE_VEC_X in grid.c */
+    }
 
     g_tilesize = round(g_tilesize * grid_scale[params->type]);
 
