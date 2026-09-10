@@ -493,7 +493,7 @@ static void update_neighbours(const game_params *params, struct grid_info *gi)
                     }
                     if (!found) {
                         printf("Neighbour array error: tile %d is "
-                               "neghobour to %d but not the reverse\n",
+                               "neighbour to %d but not the reverse\n",
                                i, tile);
                     }
                 }
