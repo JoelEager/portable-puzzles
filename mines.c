@@ -20,7 +20,10 @@
  *  - If cursor should be supported, add a section in the
  *    update_neighbours function.
  *
- * -  The define GRID_DIAGNOSTICS might be helpful for the last three
+ *  - If the topology is non-trivial, e.g., cyclic, add a section in
+ *    update_neighbours and update the IS_CYCLIC define.
+ *
+ *  - The define GRID_DIAGNOSTICS might be helpful for the last three
  *    points.
  *
  *  - Find valid size parameters and add an entry in validate_params.
@@ -58,18 +61,26 @@ enum {
     COL_WRONGNUMBER,
     COL_CURSOR,
     COL_FLAGLIGHT,
+    COL_CYCLIC_ARROW,
     NCOLOURS
 };
 
 #define PREFERRED_TILE_SIZE 20
 #define TILE_SIZE (ds->tilesize)
 #ifdef SMALL_SCREEN
-#define BORDER 8
+#define BORDER (IS_CYCLIC(ds->grid->type) ? ARROW_DIST+ARROW_HEAD_WIDTH + 4 : 8)
 #else
-#define BORDER (TILE_SIZE * 3 / 2)
+#define BORDER max(TILE_SIZE * 3 / 2, ARROW_DIST+ARROW_HEAD_WIDTH + 2)
 #endif
 #define HIGHLIGHT_WIDTH (TILE_SIZE / 10 ? TILE_SIZE / 10 : 1)
 #define OUTER_HIGHLIGHT_WIDTH (BORDER / 10 ? BORDER / 10 : 1)
+
+/* Dimensions for arrow to indicate cyclic grid */
+#define ARROW_HEAD_WIDTH ((TILE_SIZE + 3) / 4)
+#define ARROW_HEAD_LENGTH ((TILE_SIZE + 2) / 3)
+#define ARROW_SEPARATION ARROW_HEAD_LENGTH
+#define ARROW_DIST ((TILE_SIZE + 1)/2)
+
 #define GRID2SCREENX(x) (((x) - ds->xoff) * TILE_SIZE / ds->grid->tilesize + BORDER)
 #define GRID2SCREENY(y) (((y) - ds->yoff) * TILE_SIZE / ds->grid->tilesize + BORDER)
 #define SCREEN2GRIDX(x) (((x) - BORDER) * ds->grid->tilesize / TILE_SIZE + ds->xoff)
@@ -91,6 +102,10 @@ static const int xlight = -12, ylight = -5;
 
 /* Maximum number of neighbours of any face in the grids. */
 #define MAX_NEIGHBOURS 16
+
+#define IS_CYCLIC(type) (type == MINES_GRID_SQUARE_CYCLIC || \
+                         type == MINES_GRID_HONEYCOMB_CYCLIC || \
+                         type == MINES_GRID_TRIANGULAR_CYCLIC)
 
 #define GRIDLIST(A)                                             \
     A("Squares", SQUARE, SQUARE, 1)                             \
@@ -831,7 +846,7 @@ static struct grid_info *new_grid(const game_params *params, char *desc)
         }
         d = (d == e->dot1)? e->dot2 : e->dot1;
     }
-    assert(d == ret->rim_dots[0]); /* This could happen if grid has a
+    assert(d == ret->rim_dots[0]); /* This could happen if the grid has a
                                     * hole, i.e., the rim is not just
                                     * one loop.
                                     */
@@ -4616,8 +4631,11 @@ static void game_compute_size(const game_params *params, int tilesize,
     int g_tilesize;
 
     /* Ick: fake up `ds->tilesize' for macro expansion purposes */
-    struct { int tilesize; } ads, *ds = &ads;
+    /* Even more Ick for ds->grid->type */
+    struct grid { enum game_type type; } g = { params->type };
+    struct { int tilesize; struct grid *grid; } ads, *ds = &ads;
     ads.tilesize = tilesize;
+    ads.grid = &g;
 
     grid_compute_size(grid_types[params->type], params->w, params->h,
                       &g_tilesize, &grid_width, &grid_height);
@@ -4739,6 +4757,10 @@ static float *game_colours(frontend *fe, int *ncolours)
     ret[COL_CURSOR * 3 + 0] = ret[COL_HIGHLIGHT * 3 + 0];
     ret[COL_CURSOR * 3 + 1] = ret[COL_HIGHLIGHT * 3 + 0] / 2.0F;
     ret[COL_CURSOR * 3 + 2] = ret[COL_HIGHLIGHT * 3 + 0] / 2.0F;
+
+    ret[COL_CYCLIC_ARROW * 3 + 0] = ret[COL_BACKGROUND * 3 + 0] * 2.0F / 3.0F;
+    ret[COL_CYCLIC_ARROW * 3 + 1] = ret[COL_BACKGROUND * 3 + 1] * 2.0F / 3.0F;
+    ret[COL_CYCLIC_ARROW * 3 + 2] = ret[COL_BACKGROUND * 3 + 2] * 2.0F / 3.0F;
 
     *ncolours = NCOLOURS;
     return ret;
@@ -5320,6 +5342,36 @@ static void calc_rim_info(struct game_drawstate *ds)
     ds->bb_ymax = bb_ymax;
 }
 
+/* Draw an horizontal arrow from (x1, y) to (x2, y) */
+static void draw_horizontal_arrow(drawing *dr, game_drawstate *ds,
+                       int x1, int x2, int y) {
+    int xhead = (x1 + x2 + ARROW_HEAD_LENGTH) / 2;
+    draw_line(dr, x1, y, x2, y, COL_CYCLIC_ARROW);
+    draw_line(dr, xhead, y,
+              xhead - ARROW_HEAD_LENGTH, y - ARROW_HEAD_WIDTH,
+              COL_CYCLIC_ARROW);
+    draw_line(dr, xhead, y,
+              xhead - ARROW_HEAD_LENGTH, y + ARROW_HEAD_WIDTH,
+              COL_CYCLIC_ARROW);
+}
+
+/* Draw vertical downwards pointing double arrow */
+static void draw_vertical_arrow(drawing *dr, game_drawstate *ds,
+                       int x, int y1, int y2) {
+    int yhead0 = (y1 + y2 + ARROW_HEAD_LENGTH + ARROW_SEPARATION) / 2;
+    int i;
+    draw_line(dr, x, y1, x, y2, COL_CYCLIC_ARROW);
+    for (i = 0; i < 2; i++) {
+        int yhead = yhead0 - i * ARROW_SEPARATION;
+        draw_line(dr, x, yhead,
+                  x - ARROW_HEAD_WIDTH, yhead - ARROW_HEAD_LENGTH,
+                  COL_CYCLIC_ARROW);
+        draw_line(dr, x, yhead,
+                  x + ARROW_HEAD_WIDTH, yhead - ARROW_HEAD_LENGTH,
+                  COL_CYCLIC_ARROW);
+    }
+}
+
 static void game_redraw(drawing *dr, game_drawstate *ds,
                         const game_state *oldstate, const game_state *state,
                         int dir, const game_ui *ui,
@@ -5356,6 +5408,27 @@ static void game_redraw(drawing *dr, game_drawstate *ds,
         bb_ymin = ds->bb_ymin;
         bb_ymax = ds->bb_ymax;
 
+        /* If cyclic, draw arrows to indicate how the board is connected. */
+        if (IS_CYCLIC(ds->grid->type)) {
+            draw_horizontal_arrow(dr, ds,
+                                  bb_xmin,
+                                  bb_xmax, bb_ymin - ARROW_DIST);
+
+            draw_horizontal_arrow(dr, ds,
+                                  bb_xmin,
+                                  bb_xmax, bb_ymax + ARROW_DIST);
+
+            draw_vertical_arrow(dr, ds,
+                                bb_xmin - ARROW_DIST,
+                                bb_ymin, bb_ymax);
+
+            draw_vertical_arrow(dr, ds,
+                                bb_xmax + ARROW_DIST,
+                                bb_ymin, bb_ymax);
+
+            /* The midend is kind to call draw_update for us the first time. */
+        }
+        
         ds->started = true;
     }
 
