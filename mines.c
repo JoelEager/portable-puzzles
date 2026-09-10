@@ -109,12 +109,12 @@ static const int xlight = -12, ylight = -5;
 
 #define GRIDLIST(A)                                             \
     A("Squares", SQUARE, SQUARE, 1)                             \
-    A("Squares cyclic", SQUARE, SQUARE_CYCLIC, 1)               \
+    A("Squares wrapping", SQUARE, SQUARE_CYCLIC, 1)             \
     A("Honeycomb", HONEYCOMB, HONEYCOMB, 1)                     \
-    A("Honeycomb cyclic", HONEYCOMB, HONEYCOMB_CYCLIC, 1)       \
+    A("Honeycomb wrapping", HONEYCOMB, HONEYCOMB_CYCLIC, 1)     \
     A("Octagonal", OCTAGONAL2, OCTAGONAL2, 1)                   \
     A("Triangular", TRIANGULAR, TRIANGULAR, 1)                  \
-    A("Triangular cyclic", TRIANGULAR, TRIANGULAR_CYCLIC, 1)    \
+    A("Triangular wrapping", TRIANGULAR, TRIANGULAR_CYCLIC, 1)  \
     A("Snub-Square", SNUBSQUARE, SNUBSQUARE, 1)                 \
     A("Cairo", CAIRO, CAIRO, 1)                                 \
     A("Kites", KITE, KITE, 0.9)                                 \
