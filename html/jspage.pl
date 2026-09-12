@@ -2,6 +2,7 @@
 
 use strict;
 use warnings;
+use File::Basename;
 
 my $jspath = "";
 while ($ARGV[0] =~ /^-/) {
@@ -18,6 +19,49 @@ open my $footerfile, "<", shift @ARGV or die "footer: open: $!\n";
 my $footer = "";
 $footer .= $_ while <$footerfile>;
 close $footerfile;
+
+my %descriptions;
+my $script_dir = dirname($0);
+my $cmakepath;
+for my $path ("CMakeLists.txt", "../CMakeLists.txt", "$script_dir/../CMakeLists.txt", "$script_dir/../../CMakeLists.txt") {
+    if (-f $path) {
+        $cmakepath = $path;
+        last;
+    }
+}
+if (defined $cmakepath && open my $cmake, "<", $cmakepath) {
+    my $cur_puz;
+    while (<$cmake>) {
+        if (/puzzle\s*\(\s*([\w-]+)/) {
+            $cur_puz = $1;
+        }
+        if ($cur_puz && /DESCRIPTION\s+"([^"]+)"/) {
+            $descriptions{$cur_puz} = $1;
+        }
+    }
+    close $cmake;
+}
+
+my $git_dir_opt = -d "$script_dir/.git" || -f "$script_dir/../CMakeLists.txt" ? "-C \"$script_dir\"" : "";
+
+my $current_commit_info = `git $git_dir_opt log -1 --format="%ad %h %s" 2>/dev/null`;
+chomp $current_commit_info if defined $current_commit_info;
+$current_commit_info ||= "Unknown";
+
+my $main_commit_info = `git $git_dir_opt log -1 \$(git $git_dir_opt merge-base HEAD main 2>/dev/null || git $git_dir_opt merge-base HEAD origin/main 2>/dev/null) --format="%ad %h %s" 2>/dev/null`;
+chomp $main_commit_info if defined $main_commit_info;
+$main_commit_info ||= "Unknown";
+
+my $provenance_html = <<EOF;
+<hr>
+<p>Build provenance:</p>
+<ul>
+<li>Current commit: ${current_commit_info}</li>
+<li>Main branch commit: ${main_commit_info}</li>
+</ul>
+EOF
+
+my @bullets;
 
 for my $arg (@ARGV) {
     $arg =~ /(.*\/)?([^\/]+)\.html$/ or die;
@@ -39,6 +83,12 @@ for my $arg (@ARGV) {
     $instructions .= $_ while <$gamefile>;
     close $gamefile;
 
+    if (!$unfinished) {
+        my $desc = $descriptions{$filename} // "";
+        my $desc_suffix = $desc ne "" ? ": $desc" : "";
+        push @bullets, "<li><a href=\"${filename}.html\">${puzzlename}</a>${desc_suffix}</li>";
+    }
+
     open my $outpage, ">", "${filename}.html";
 
     my $unfinishedtitlefragment = $unfinished ? "an unfinished puzzle " : "";
@@ -49,13 +99,13 @@ for my $arg (@ARGV) {
         $unfinishedpara = <<EOF;
 <p>
 You have found your way to a page containing an <em>unfinished</em>
-puzzle in my collection, not linked from the <a href="../">main
+puzzle in my collection, not linked from the <a href="puzzles.html">main
 puzzles page</a>. Don't be surprised if things are hard to understand
 or don't work as you expect.
 EOF
         $links = <<EOF;
 <p align="center">
-<a href="../">Back to main puzzles page</a> (which does not link to this)
+<a href="puzzles.html">Back to main puzzles page</a> (which does not link to this)
 EOF
     } else {
         $unfinishedpara = "";
@@ -63,7 +113,7 @@ EOF
 <p align="center">
 <a href="../doc/${docname}.html#${docname}">Full instructions</a>
 |
-<a href="../">Back to main puzzles page</a>
+<a href="puzzles.html">Back to main puzzles page</a>
 EOF
     }
 
@@ -435,9 +485,39 @@ ${instructions}
 ${links}
 
 ${footer}
+${provenance_html}
 </body>
 </html>
 EOF
 
     close $outpage;
 }
+
+open my $outpuzzles, ">", "puzzles.html";
+print $outpuzzles <<EOF;
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ASCII" />
+<title>Simon Tatham's Portable Puzzle Collection</title>
+</head>
+<body>
+<h1 align=center>Simon Tatham's Portable Puzzle Collection</h1>
+
+<ul>
+EOF
+
+for my $bullet (@bullets) {
+    print $outpuzzles "$bullet\n";
+}
+
+print $outpuzzles <<EOF;
+</ul>
+
+${footer}
+${provenance_html}
+</body>
+</html>
+EOF
+
+close $outpuzzles;
