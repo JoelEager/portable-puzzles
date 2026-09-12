@@ -455,6 +455,7 @@ function initPuzzle() {
     var get_save_file = Module.cwrap('get_save_file', 'number', []);
     var free_save_file = Module.cwrap('free_save_file', 'void', ['number']);
     var load_game = Module.cwrap('load_game', 'void', []);
+    var load_game_no_error_box = Module.cwrap('load_game_no_error_box', 'boolean', []);
 
     if (save_button) save_button.onclick = function(event) {
         if (dlg_dimmer === null) {

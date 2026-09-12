@@ -105,6 +105,8 @@ extern bool js_savefile_read(void *buf, int len);
 
 extern void js_save_prefs(const char *);
 extern void js_load_prefs(midend *);
+extern void js_save_autosave(const char *);
+extern bool js_load_autosave(midend *);
 
 /*
  * These functions are called from JavaScript, so their prototypes
@@ -122,6 +124,7 @@ void free_save_file(char *buffer);
 char *get_save_file(void);
 void free_save_file(char *buffer);
 void load_game(void);
+bool load_game_no_error_box(void);
 void dlg_return_sval(int index, const char *val);
 void dlg_return_ival(int index, int val);
 void resize_puzzle(int w, int h);
@@ -132,6 +135,7 @@ void rescale_puzzle(void);
  * Internal forward references.
  */
 static void save_prefs(midend *me);
+static void save_autosave(midend *me);
 
 /*
  * Call JS to get the date, and use that to initialise our random
@@ -309,6 +313,7 @@ static void post_move(void)
     js_enable_undo_redo(midend_can_undo(me), midend_can_redo(me));
     js_update_key_labels(midend_current_key_label(me, CURSOR_SELECT2),
                          midend_current_key_label(me, CURSOR_SELECT));
+    save_autosave(me);
 }
 
 /*
@@ -708,6 +713,7 @@ static void cfg_end(bool use_results)
             midend_redraw(me);
             free_cfg(cfg);
             js_dialog_cleanup();
+            save_autosave(me);
         }
     } else {
         /*
@@ -892,10 +898,51 @@ void load_game(void)
     }
 }
 
+bool load_game_no_error_box(void)
+{
+    const char *err;
+
+    err = midend_deserialise(me, savefile_read, NULL);
+
+    if (err) {
+        return false;
+    } else {
+        select_appropriate_preset();
+        resize();
+        midend_redraw(me);
+        update_permalinks();
+        post_move();
+        return true;
+    }
+}
+
 /* ----------------------------------------------------------------------
  * Functions to load and save preferences, calling out to JS to access
  * the appropriate localStorage slot.
  */
+
+static void save_autosave(midend *me)
+{
+    struct savefile_write_ctx ctx;
+    size_t size;
+
+    /* First pass, to count up the size */
+    ctx.buffer = NULL;
+    ctx.pos = 0;
+    midend_serialise(me, savefile_write, &ctx);
+    size = ctx.pos;
+
+    /* Second pass, to actually write out the data. */
+    ctx.buffer = snewn(size+1, char);
+    ctx.pos = 0;
+    midend_serialise(me, savefile_write, &ctx);
+    assert(ctx.pos == size);
+    ctx.buffer[ctx.pos] = '\0';
+
+    js_save_autosave(ctx.buffer);
+
+    sfree(ctx.buffer);
+}
 
 static void save_prefs(midend *me)
 {
@@ -987,10 +1034,17 @@ int main(int argc, char **argv)
         param_err = NULL;
 
     /*
-     * Create either a random game or the specified one, and set the
-     * canvas size appropriately.
+     * Create either a random game or the specified one, or restore from
+     * autosave if no hash fragment was supplied.
      */
-    midend_new_game(me);
+    bool loaded_autosave = false;
+    if (!param_err && !(argc > 1 && argv[1][0] == '#' && argv[1][1] != '\0')) {
+        loaded_autosave = js_load_autosave(me);
+    }
+
+    if (!loaded_autosave) {
+        midend_new_game(me);
+    }
     resize();
 
     /*
