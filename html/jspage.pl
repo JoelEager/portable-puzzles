@@ -43,22 +43,24 @@ if (defined $cmakepath && open my $cmake, "<", $cmakepath) {
 }
 
 my $git_dir_opt = -d "$script_dir/.git" || -f "$script_dir/../CMakeLists.txt" ? "-C \"$script_dir\"" : "";
+my $git_log_format = "--date=format:%Y-%m-%d --format='%ad %h; %s'";
 
-my $current_commit_info = `git $git_dir_opt log -1 --format="%ad %h %s" 2>/dev/null`;
+my $current_commit_info = `git $git_dir_opt log -1 $git_log_format 2>/dev/null`;
 chomp $current_commit_info if defined $current_commit_info;
 $current_commit_info ||= "Unknown";
 
-my $main_commit_info = `git $git_dir_opt log -1 \$(git $git_dir_opt merge-base HEAD main 2>/dev/null || git $git_dir_opt merge-base HEAD origin/main 2>/dev/null) --format="%ad %h %s" 2>/dev/null`;
+my $main_commit_info = `git $git_dir_opt log -1 \$(git $git_dir_opt merge-base HEAD upstream/main 2>/dev/null) $git_log_format 2>/dev/null`;
 chomp $main_commit_info if defined $main_commit_info;
 $main_commit_info ||= "Unknown";
 
-my $provenance_html = <<EOF;
+$footer = <<EOF;
 <hr>
-<p>Build provenance:</p>
-<ul>
-<li>Current commit: ${current_commit_info}</li>
-<li>Main branch commit: ${main_commit_info}</li>
-</ul>
+$footer
+<p style="color: gray">
+    Commit: ${current_commit_info}
+    <br />
+    Based on upstream commit: ${main_commit_info}
+</p>
 EOF
 
 my @bullets;
@@ -111,7 +113,7 @@ EOF
         $unfinishedpara = "";
         $links = <<EOF;
 <p align="center">
-<a href="../doc/${docname}.html#${docname}">Full instructions</a>
+<a href="../doc/${docname}.html#${docname}" target="_blank">Full instructions</a>
 |
 <a href="puzzles.html">Back to main puzzles page</a>
 EOF
@@ -485,7 +487,6 @@ ${instructions}
 ${links}
 
 ${footer}
-${provenance_html}
 </body>
 </html>
 EOF
@@ -499,7 +500,7 @@ print $outpuzzles <<EOF;
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ASCII" />
-<title>Simon Tatham's Portable Puzzle Collection</title>
+<title>Portable Puzzles</title>
 </head>
 <body>
 <h1 align=center>Simon Tatham's Portable Puzzle Collection</h1>
@@ -515,7 +516,6 @@ print $outpuzzles <<EOF;
 </ul>
 
 ${footer}
-${provenance_html}
 </body>
 </html>
 EOF
