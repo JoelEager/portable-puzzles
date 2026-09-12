@@ -816,6 +816,20 @@ mergeInto(LibraryManager.library, {
     },
 
     /*
+     * void js_save_autosave(const char *);
+     *
+     * Write a buffer of serialised game data into localStorage for autosave.
+     */
+    js_save_autosave: function(buf) {
+        var savedata = UTF8ToString(buf);
+        try {
+            localStorage.setItem(location.pathname + " autosave", savedata);
+        } catch (error) {
+            console.error("Autosave failed: ", error);
+        }
+    },
+
+    /*
      * void js_save_prefs(const char *);
      *
      * Write a buffer of serialised preferences data into localStorage.
@@ -829,6 +843,40 @@ mergeInto(LibraryManager.library, {
             console.error(error);
             alert("Saving of preferences failed: " + error.message);
         }
+    },
+
+    /*
+     * bool js_load_autosave(midend *);
+     *
+     * Retrieve auto-saved game data from localStorage, if any exists.
+     * Sets savefile_read_callback and calls load_game(). Returns true
+     * if an autosave was found and loaded, false otherwise.
+     */
+    js_load_autosave__deps: ['load_game_no_error_box'],
+    js_load_autosave: function(me) {
+        try {
+            var savedata = localStorage.getItem(location.pathname + " autosave");
+            if (savedata !== undefined && savedata !== null) {
+                var encoder = new TextEncoder();
+                var dataBytes = encoder.encode(savedata);
+                var pos = 0;
+                savefile_read_callback = function(buf, len) {
+                    if (pos + len > dataBytes.length)
+                        return false;
+                    writeArrayToMemory(
+                        dataBytes.subarray(pos, pos + len), buf);
+                    pos += len;
+                    return true;
+                };
+                var loaded = _load_game_no_error_box();
+                savefile_read_callback = null;
+                return loaded;
+            }
+        } catch (error) {
+            console.warn("Autosave load failed: ", error);
+        }
+        savefile_read_callback = null;
+        return false;
     },
 
     /*

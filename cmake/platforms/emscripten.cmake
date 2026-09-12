@@ -45,6 +45,7 @@ set(emcc_export_list
   _get_save_file
   _free_save_file
   _load_game
+  _load_game_no_error_box
   # Callbacks to return values from dialog boxes
   _dlg_return_sval
   _dlg_return_ival
