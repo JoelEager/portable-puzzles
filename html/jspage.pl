@@ -4,17 +4,6 @@ use strict;
 use warnings;
 use File::Basename;
 
-my $jspath = "";
-while ($ARGV[0] =~ /^-/) {
-    my $opt = shift @ARGV;
-    last if $opt eq "--";
-    if ($opt =~ /^--jspath=(.+)$/) {
-        $jspath = $1;
-    } else {
-        die "jspage.pl: unrecognised option '$opt'\n";
-    }
-}
-
 open my $footerfile, "<", shift @ARGV or die "footer: open: $!\n";
 my $footer = "";
 $footer .= $_ while <$footerfile>;
@@ -88,10 +77,10 @@ for my $arg (@ARGV) {
     if (!$unfinished) {
         my $desc = $descriptions{$filename} // "";
         my $desc_suffix = $desc ne "" ? ": $desc" : "";
-        push @bullets, "<li><a href=\"${filename}.html\">${puzzlename}</a>${desc_suffix}</li>";
+        push @bullets, "<li><a href=\"/puzzles/${filename}.html\">${puzzlename}</a>${desc_suffix}</li>";
     }
 
-    open my $outpage, ">", "${filename}.html";
+    open my $outpage, ">", "puzzles/${filename}.html";
 
     my $unfinishedtitlefragment = $unfinished ? "an unfinished puzzle " : "";
     my $unfinishedheading = $unfinished ? "<h2 align=center>an unfinished puzzle</h2>\n" : "";
@@ -101,21 +90,21 @@ for my $arg (@ARGV) {
         $unfinishedpara = <<EOF;
 <p>
 You have found your way to a page containing an <em>unfinished</em>
-puzzle in my collection, not linked from the <a href="puzzles.html">main
+puzzle in my collection, not linked from the <a href="/puzzles.html">main
 puzzles page</a>. Don't be surprised if things are hard to understand
 or don't work as you expect.
 EOF
         $links = <<EOF;
 <p align="center">
-<a href="puzzles.html">Back to main puzzles page</a> (which does not link to this)
+<a href="/puzzles.html">Back to main puzzles page</a> (which does not link to this)
 EOF
     } else {
         $unfinishedpara = "";
         $links = <<EOF;
 <p align="center">
-<a href="../doc/${docname}.html#${docname}" target="_blank">Full instructions</a>
+<a href="/puzzles/doc/${docname}.html" target="_blank">Full instructions</a>
 |
-<a href="puzzles.html">Back to main puzzles page</a>
+<a href="/puzzles.html">Back to main puzzles page</a>
 EOF
     }
 
@@ -125,7 +114,7 @@ EOF
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ASCII" />
 <title>${puzzlename}, ${unfinishedtitlefragment}from Simon Tatham's Portable Puzzle Collection</title>
-<script defer type="text/javascript" src="${jspath}${filename}.js"></script>
+<script defer type="text/javascript" src="/puzzles/${filename}.js"></script>
 <style>
 /* Top-level form for the game menu */
 #gamemenu {
